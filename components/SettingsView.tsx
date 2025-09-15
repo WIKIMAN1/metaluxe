@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ConnectablePlatform, PlatformConnection, AiConfig, WebhookConfig, GoogleCalendarConfig } from '../types';
 import { FacebookIcon, InstagramIcon, TikTokIcon, WhatsAppIcon, LinkIcon, CogIcon, GoogleIcon, CalendarIcon } from './Icons';
-import { fetchPlatformConnections, savePlatformConnection, fetchAiConfig, saveAiConfig, fetchWebhookConfig, saveWebhookConfig } from '../services/api';
+import { fetchPlatformConnections, savePlatformConnection, fetchAiConfig, saveAiConfig } from '../services/api';
 
 const platformIcons: Record<ConnectablePlatform, React.ReactNode> = {
     Facebook: <FacebookIcon className="w-8 h-8 text-blue-500" />,
@@ -21,6 +21,53 @@ const InputField: React.FC<{ label: string; value: string; onChange: (e: React.C
         />
     </div>
 );
+
+const CopyableInputField: React.FC<{
+    label: string;
+    value: string;
+    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    type?: string;
+    isReadOnly?: boolean;
+}> = ({ label, value, onChange, type = 'text', isReadOnly = false }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-gray-400">{label}</label>
+            <div className="mt-1 relative rounded-md shadow-sm">
+                <input
+                    type={type}
+                    value={value}
+                    onChange={onChange}
+                    readOnly={isReadOnly}
+                    className="block w-full pr-10 px-3 py-2 bg-gray-700 border border-gray-600 text-gray-200 rounded-md placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                    aria-label={label}
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <button type="button" onClick={handleCopy} className="text-gray-400 hover:text-yellow-400 focus:outline-none" aria-label={`Copy ${label}`}>
+                        {copied ? (
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const ConnectionCard: React.FC<{ connection: PlatformConnection; onSave: (conn: PlatformConnection) => void }> = ({ connection, onSave }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -69,21 +116,23 @@ const ConnectionCard: React.FC<{ connection: PlatformConnection; onSave: (conn: 
 const SettingsView: React.FC = () => {
     const [connections, setConnections] = useState<PlatformConnection[]>([]);
     const [aiConfig, setAiConfig] = useState<AiConfig>({ apiKey: '' });
-    const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({ callbackUrl: '', verifyToken: '' });
+    // Webhook config is now static to guarantee it's always available.
+    const [webhookConfig, setWebhookConfig] = useState<WebhookConfig>({ 
+        callbackUrl: 'https://metaluxe-backend.onrender.com/api/webhook', 
+        verifyToken: 'METALUXE_WEBHOOK_SECRET_TOKEN_WIKILIS_2025' 
+    });
     const [calendarConfig, setCalendarConfig] = useState<GoogleCalendarConfig>({ connected: false });
     const [isLoading, setIsLoading] = useState(true);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [conns, aiConf, webhookConf] = await Promise.all([
+            const [conns, aiConf] = await Promise.all([
                 fetchPlatformConnections(),
                 fetchAiConfig(),
-                fetchWebhookConfig(),
             ]);
             setConnections(conns);
             setAiConfig(aiConf);
-            setWebhookConfig(webhookConf);
             // In a real app, you'd fetch this from the backend as well
             setCalendarConfig({ connected: false, userEmail: undefined });
         } catch (error) {
@@ -112,15 +161,6 @@ const SettingsView: React.FC = () => {
             alert("AI Configuration saved!");
         } catch (error) {
             console.error("Failed to save AI config", error);
-        }
-    };
-    
-     const handleSaveWebhookConfig = async () => {
-        try {
-            await saveWebhookConfig({ verifyToken: webhookConfig.verifyToken });
-             alert("Webhook Configuration saved!");
-        } catch (error) {
-            console.error("Failed to save webhook config", error);
         }
     };
     
@@ -172,18 +212,56 @@ const SettingsView: React.FC = () => {
                     <button onClick={handleSaveAiConfig} className="mt-4 px-4 py-2 font-semibold rounded-md transition text-sm bg-yellow-500 text-gray-900 hover:bg-yellow-600">Save AI Key</button>
                 </div>
                 
-                 {/* Webhook Configuration */}
-                <div className="bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold text-gray-300 mb-4">Webhook Configuration</h2>
-                    <p className="text-sm text-gray-400 mb-4">Use this information to set up your webhook in the Meta Developer Portal.</p>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-400">Callback URL</label>
-                        <input type="text" readOnly value={webhookConfig.callbackUrl} className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm" />
+                {/* Webhook Configuration */}
+                <div className="bg-gray-800 rounded-lg shadow p-6 border border-yellow-500/30">
+                    <h2 className="text-xl font-semibold text-gray-200 mb-2 flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                        Conexión de Webhook con Meta
+                    </h2>
+                    <p className="text-sm text-gray-400 mb-6">Sigue estos pasos para permitir que MetaLuxe reciba mensajes de Facebook e Instagram en tiempo real.</p>
+                    
+                    <div className="space-y-6 text-sm">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-yellow-500 text-black font-bold">1</div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-gray-200">Ve al Portal de Desarrolladores de Meta</h3>
+                                <p className="text-gray-400">Abre tu aplicación en <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:underline">developers.facebook.com</a> y navega a la sección "Webhook" en el menú de la izquierda.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-yellow-500 text-black font-bold">2</div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-gray-200">Configura la Suscripción</h3>
+                                <p className="text-gray-400 mb-3">Busca "Messenger" en la lista y haz clic en "Editar suscripción". Copia y pega la siguiente URL en el campo "URL de devolución de llamada".</p>
+                                <CopyableInputField label="URL de Devolución de Llamada (Callback URL)" value={webhookConfig.callbackUrl} isReadOnly />
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-yellow-500 text-black font-bold">3</div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-gray-200">Verifica tu Servidor</h3>
+                                <p className="text-gray-400 mb-3">Ahora, copia y pega este token en el campo "Token de verificación" en el portal de Meta.</p>
+                                <CopyableInputField label="Token de Verificación (Verify Token)" value={webhookConfig.verifyToken} isReadOnly />
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-yellow-500 text-black font-bold">4</div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-gray-200">Verificar y Guardar</h3>
+                                <p className="text-gray-400">Haz clic en "Verificar y Guardar". Si todo es correcto, Meta confirmará la conexión. ¡Luego, suscríbete a los eventos que necesites (como `messages` y `messaging_postbacks`)!</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="mt-4">
-                        <InputField label="Verify Token" value={webhookConfig.verifyToken} onChange={e => setWebhookConfig({ ...webhookConfig, verifyToken: e.target.value })} />
+                    
+                    <div className="mt-6 pt-4 border-t border-gray-700">
+                        <h4 className="font-semibold text-yellow-300">Nota Importante</h4>
+                        <p className="text-xs text-gray-400 mt-1">
+                            Si la verificación falla, asegúrate de que has copiado los valores exactamente como aparecen y que el servidor backend de MetaLuxe está en línea y accesible públicamente.
+                        </p>
                     </div>
-                    <button onClick={handleSaveWebhookConfig} className="mt-4 px-4 py-2 font-semibold rounded-md transition text-sm bg-yellow-500 text-gray-900 hover:bg-yellow-600">Save Token</button>
                 </div>
 
             </div>

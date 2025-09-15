@@ -8,6 +8,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = path.join(__dirname, 'db.json');
 
+// --- Static Configuration ---
+const VERIFY_TOKEN = 'METALUXE_WEBHOOK_SECRET_TOKEN_WIKILIS_2025'; // Static, secret token
+const RENDER_URL = 'https://metaluxe-backend.onrender.com'; // The public URL of the backend
+const CALLBACK_URL = `${RENDER_URL}/api/webhook`;
+
 const { initialRules, initialServices } = require('./mock.js');
 
 // --- Middleware ---
@@ -29,10 +34,6 @@ const readDb = () => {
                 { platform: 'WhatsApp', connected: false, appId: '', appSecret: '', pageId: '', accessToken: '' },
             ],
             aiConfig: { apiKey: '' },
-            webhookConfig: { 
-                verifyToken: `metaluxe-token-${Date.now()}`,
-                callbackUrl: 'YOUR_RENDER_URL/api/webhook' // Placeholder
-            },
             conversations: [], // Start with empty conversations
         };
         fs.writeFileSync(DB_PATH, JSON.stringify(defaultStructure, null, 2));
@@ -47,8 +48,7 @@ const readDb = () => {
         if (!parsedData.conversations) parsedData.conversations = [];
         if (!parsedData.connections) parsedData.connections = [];
         if (!parsedData.aiConfig) parsedData.aiConfig = { apiKey: '' };
-        if (!parsedData.webhookConfig) parsedData.webhookConfig = { verifyToken: `metaluxe-token-${Date.now()}`, callbackUrl: '' };
-
+        
         return parsedData;
     } catch (error) {
         console.error("Error reading or parsing db.json, creating a new one:", error);
@@ -58,7 +58,9 @@ const readDb = () => {
 };
 
 const writeDb = (data) => {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+    // Ensure we don't write webhook config to the db file
+    const { webhookConfig, ...dataToWrite } = data;
+    fs.writeFileSync(DB_PATH, JSON.stringify(dataToWrite, null, 2));
 };
 
 // --- API Endpoints for Static Data (Automation Rules, Services) ---
@@ -108,16 +110,12 @@ app.post('/api/ai-config', (req, res) => {
 });
 
 app.get('/api/webhook-config', (req, res) => {
-    const db = readDb();
-    res.json(db.webhookConfig);
-});
-
-app.post('/api/webhook-config', (req, res) => {
-    const { verifyToken } = req.body;
-    const db = readDb();
-    db.webhookConfig = { ...db.webhookConfig, verifyToken };
-    writeDb(db);
-    res.status(200).json({ message: 'Webhook token updated.' });
+    // This endpoint now returns static, guaranteed values, independent of db.json.
+    // This is the definitive fix for the blank token issue.
+    res.status(200).json({
+        verifyToken: VERIFY_TOKEN,
+        callbackUrl: CALLBACK_URL
+    });
 });
 
 
@@ -126,8 +124,6 @@ app.post('/api/webhook-config', (req, res) => {
 // Verification Request (when you set up the webhook in Facebook)
 app.get('/api/webhook', (req, res) => {
     console.log('GET /api/webhook - Verification request from Meta');
-    const db = readDb();
-    const VERIFY_TOKEN = db.webhookConfig.verifyToken;
 
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
@@ -137,7 +133,9 @@ app.get('/api/webhook', (req, res) => {
         console.log('Webhook verified successfully!');
         res.status(200).send(challenge);
     } else {
-        console.error('Webhook verification failed.');
+        console.error('Webhook verification failed. Mismatch between received token and expected token.');
+        console.error(`Received Token: ${token}`);
+        console.error(`Expected Token: ${VERIFY_TOKEN}`);
         res.sendStatus(403);
     }
 });

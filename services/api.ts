@@ -56,17 +56,3 @@ export const saveAiConfig = (config: AiConfig): Promise<{ message: string }> => 
         body: JSON.stringify(config)
     }).then(response => handleResponse<{ message: string }>(response));
 };
-
-export const fetchWebhookConfig = (): Promise<WebhookConfig> => {
-    // FIX: Explicitly typed the generic for handleResponse to ensure the correct return type.
-    return fetch(`${BASE_URL}/webhook-config`).then(response => handleResponse<WebhookConfig>(response));
-};
-
-export const saveWebhookConfig = (config: Partial<WebhookConfig>): Promise<{ message: string }> => {
-    // FIX: Explicitly typed the generic for handleResponse to ensure the correct return type.
-    return fetch(`${BASE_URL}/webhook-config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
-    }).then(response => handleResponse<{ message: string }>(response));
-};
