@@ -1,0 +1,80 @@
+{
+  "connections": [
+    {
+      "platform": "Facebook",
+      "connected": false,
+      "appId": "",
+      "appSecret": "",
+      "pageId": "",
+      "accessToken": ""
+    },
+    {
+      "platform": "Instagram",
+      "connected": false,
+      "appId": "",
+      "appSecret": "",
+      "pageId": "",
+      "accessToken": ""
+    },
+    {
+      "platform": "TikTok",
+      "connected": false,
+      "appId": "",
+      "appSecret": "",
+      "pageId": "",
+      "accessToken": ""
+    },
+    {
+      "platform": "WhatsApp",
+      "connected": false,
+      "appId": "",
+      "appSecret": "",
+      "pageId": "",
+      "accessToken": ""
+    }
+  ],
+  "aiConfig": {
+    "apiKey": ""
+  },
+  "webhookConfig": {
+    "verifyToken": "metaluxe-token-1757958448993",
+    "callbackUrl": "https://your-production-url.com/api/webhook"
+  },
+  "conversations": [
+    {
+      "id": "conv_123456789",
+      "customer": {
+        "id": "123456789",
+        "username": "messenger_user_6789",
+        "realName": "Messenger User 6789",
+        "platform": "Facebook",
+        "avatarUrl": "https://picsum.photos/seed/123456789/100/100",
+        "phone": "",
+        "email": "",
+        "notes": "New lead from webhook.",
+        "tags": [
+          "New Lead"
+        ]
+      },
+      "messages": [
+        {
+          "id": "m_12345",
+          "text": "Hola, quiero saber el precio del botox",
+          "timestamp": "2020-03-02T18:27:47.158Z",
+          "sender": "user",
+          "type": "Private Message"
+        },
+        {
+          "id": "msg_bot_1757959094266",
+          "text": "[Eva's AI response to: \"Hola, quiero saber el precio del botox\"]",
+          "timestamp": "2025-09-15T17:58:14.266Z",
+          "sender": "bot",
+          "type": "Private Message"
+        }
+      ],
+      "lastMessagePreview": "[Eva's AI response to: \"Hola, quiero sab...",
+      "unreadCount": 1,
+      "timestamp": "2025-09-15T17:58:14.266Z"
+    }
+  ]
+}

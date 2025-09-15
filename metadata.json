@@ -1,0 +1,8 @@
+
+{
+  "name": "MetaLuxe",
+  "description": "An integrated platform to automate and centralize customer communication, appointment scheduling, and sales tracking for a luxury salon. It features a unified inbox for social media, a client CRM, and a powerful chatbot automation engine.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
