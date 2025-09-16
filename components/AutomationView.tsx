@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { SocialPlatform, AutomationRule, Service } from '../types';
 import { FacebookIcon, TikTokIcon, InstagramIcon } from './Icons';
-import { fetchAutomationRules, fetchServices } from '../services/api';
+import { 
+    fetchAutomationRules, 
+    fetchServices, 
+    fetchAutomationConfig,
+    saveAutomationConfig,
+    saveAutomationRule,
+    deleteAutomationRule,
+    saveService,
+    deleteService
+} from '../services/api';
+import Modal from './Modal';
 
 const platformIcons: Record<SocialPlatform, React.ReactNode> = {
     [SocialPlatform.Facebook]: <FacebookIcon className="w-5 h-5 text-blue-500" />,
@@ -18,21 +28,29 @@ const Card: React.FC<{ title: string; description: string; children: React.React
 );
 
 const AutomationView: React.FC = () => {
-    const [welcomeMessage, setWelcomeMessage] = useState('¡Hola! 👋 Bienvenida a nuestro salón. ¿Cómo podemos ayudarte hoy?');
+    const [welcomeMessage, setWelcomeMessage] = useState('');
     const [rules, setRules] = useState<AutomationRule[]>([]);
     const [services, setServices] = useState<Service[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Modal State
+    const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
+    const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+    const [currentRule, setCurrentRule] = useState<Omit<AutomationRule, 'id'> & { id?: string } | null>(null);
+    const [currentService, setCurrentService] = useState<Omit<Service, 'id'> & { id?: string } | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                const [rulesData, servicesData] = await Promise.all([
+                const [rulesData, servicesData, configData] = await Promise.all([
                     fetchAutomationRules(),
                     fetchServices(),
+                    fetchAutomationConfig(),
                 ]);
                 setRules(rulesData);
                 setServices(servicesData);
+                setWelcomeMessage(configData.welcomeMessage);
             } catch (error) {
                 console.error("Failed to load automation data", error);
             } finally {
@@ -41,6 +59,90 @@ const AutomationView: React.FC = () => {
         };
         loadData();
     }, []);
+
+    const handleSaveWelcomeMessage = async () => {
+        try {
+            await saveAutomationConfig({ welcomeMessage });
+            alert('Welcome message saved!');
+        } catch (error) {
+            console.error('Failed to save welcome message', error);
+            alert('Could not save welcome message.');
+        }
+    };
+    
+    // --- Modal Handlers ---
+    const handleOpenRuleModal = (rule: AutomationRule | null) => {
+        setCurrentRule(rule ? { ...rule } : { platform: SocialPlatform.Facebook, trigger: 'comment', keywords: [], publicReply: '', systemPrompt: '' });
+        setIsRuleModalOpen(true);
+    };
+
+    const handleOpenServiceModal = (service: Service | null) => {
+        setCurrentService(service ? { ...service } : { name: '', price: '', description: '' });
+        setIsServiceModalOpen(true);
+    };
+    
+    const handleCloseModals = () => {
+        setIsRuleModalOpen(false);
+        setIsServiceModalOpen(false);
+        setCurrentRule(null);
+        setCurrentService(null);
+    };
+
+    // --- CRUD Handlers ---
+    const handleSaveRule = async () => {
+        if (!currentRule) return;
+        try {
+            const savedRule = await saveAutomationRule(currentRule);
+            setRules(prev => {
+                const exists = prev.some(r => r.id === savedRule.id);
+                return exists ? prev.map(r => r.id === savedRule.id ? savedRule : r) : [...prev, savedRule];
+            });
+            handleCloseModals();
+        } catch (error) {
+            console.error("Failed to save rule", error);
+        }
+    };
+    
+    const handleDeleteRule = async () => {
+        if (!currentRule || !currentRule.id) return;
+        if (window.confirm('Are you sure you want to delete this rule?')) {
+            try {
+                await deleteAutomationRule(currentRule.id);
+                setRules(prev => prev.filter(r => r.id !== currentRule.id));
+                handleCloseModals();
+            } catch (error) {
+                console.error("Failed to delete rule", error);
+            }
+        }
+    };
+
+    const handleSaveService = async () => {
+        if (!currentService) return;
+         try {
+            const savedService = await saveService(currentService);
+            setServices(prev => {
+                const exists = prev.some(s => s.id === savedService.id);
+                return exists ? prev.map(s => s.id === savedService.id ? savedService : s) : [...prev, savedService];
+            });
+            handleCloseModals();
+        } catch (error) {
+            console.error("Failed to save service", error);
+        }
+    };
+
+    const handleDeleteService = async () => {
+        if (!currentService || !currentService.id) return;
+         if (window.confirm('Are you sure you want to delete this service?')) {
+            try {
+                await deleteService(currentService.id);
+                setServices(prev => prev.filter(s => s.id !== currentService.id));
+                handleCloseModals();
+            } catch (error) {
+                console.error("Failed to delete service", error);
+            }
+        }
+    };
+
 
     if (isLoading) {
         return <div className="flex-1 p-8 flex justify-center items-center text-gray-400"><p>Loading Automation Rules...</p></div>;
@@ -60,7 +162,7 @@ const AutomationView: React.FC = () => {
                             rows={3}
                             className="w-full p-2 border bg-gray-700 border-gray-600 text-gray-200 rounded-md focus:border-yellow-500 focus:ring-yellow-500 focus:ring-opacity-40 focus:outline-none"
                         />
-                        <button className="mt-4 px-4 py-2 bg-yellow-500 text-gray-900 font-semibold rounded-md hover:bg-yellow-600 transition">Save Welcome Message</button>
+                        <button onClick={handleSaveWelcomeMessage} className="mt-4 px-4 py-2 bg-yellow-500 text-gray-900 font-semibold rounded-md hover:bg-yellow-600 transition">Save Welcome Message</button>
                     </Card>
                 </div>
 
@@ -80,7 +182,7 @@ const AutomationView: React.FC = () => {
                                             {platformIcons[rule.platform]}
                                             <span className="font-bold text-gray-200">{rule.platform} Rule</span>
                                         </div>
-                                        <button className="text-sm text-yellow-400 hover:underline">Edit</button>
+                                        <button onClick={() => handleOpenRuleModal(rule)} className="text-sm text-yellow-400 hover:underline">Edit</button>
                                     </div>
                                     <div className="mt-3 text-sm space-y-2">
                                         <p><span className="font-semibold text-gray-400">Keywords:</span> {rule.keywords.map(k => <span key={k} className="ml-1 px-2 py-0.5 bg-gray-600 text-gray-200 rounded-full text-xs">{k}</span>)}</p>
@@ -93,7 +195,7 @@ const AutomationView: React.FC = () => {
                                 </div>
                             ))}
                         </div>
-                        <button className="mt-4 px-4 py-2 border border-yellow-400 text-yellow-400 font-semibold rounded-md hover:bg-yellow-400 hover:text-black transition">Add New Rule</button>
+                        <button onClick={() => handleOpenRuleModal(null)} className="mt-4 px-4 py-2 border border-yellow-400 text-yellow-400 font-semibold rounded-md hover:bg-yellow-400 hover:text-black transition">Add New Rule</button>
                     </Card>
                 </div>
 
@@ -106,15 +208,70 @@ const AutomationView: React.FC = () => {
                                         <p className="font-bold text-gray-200">{service.name} - <span className="text-yellow-400">{service.price}</span></p>
                                         <p className="text-sm text-gray-400">{service.description}</p>
                                     </div>
-                                     <button className="text-sm text-yellow-400 hover:underline">Edit</button>
+                                     <button onClick={() => handleOpenServiceModal(service)} className="text-sm text-yellow-400 hover:underline">Edit</button>
                                 </div>
                             ))}
                         </div>
-                        <button className="mt-4 px-4 py-2 border border-yellow-400 text-yellow-400 font-semibold rounded-md hover:bg-yellow-400 hover:text-black transition">Add New Service</button>
+                        <button onClick={() => handleOpenServiceModal(null)} className="mt-4 px-4 py-2 border border-yellow-400 text-yellow-400 font-semibold rounded-md hover:bg-yellow-400 hover:text-black transition">Add New Service</button>
                     </Card>
                 </div>
-
             </div>
+
+            {/* Rule Editor Modal */}
+            <Modal isOpen={isRuleModalOpen} onClose={handleCloseModals} title={currentRule?.id ? 'Edit Rule' : 'Add New Rule'}>
+                {currentRule && (
+                    <div className="space-y-4 text-gray-300">
+                        <div>
+                            <label className="block text-sm font-medium">Platform</label>
+                             <select value={currentRule.platform} onChange={e => setCurrentRule({ ...currentRule, platform: e.target.value as SocialPlatform })} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md">
+                                <option value={SocialPlatform.Facebook}>Facebook</option>
+                                <option value={SocialPlatform.Instagram}>Instagram</option>
+                                <option value={SocialPlatform.TikTok}>TikTok</option>
+                            </select>
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium">Keywords (comma-separated)</label>
+                            <input type="text" value={currentRule.keywords.join(', ')} onChange={e => setCurrentRule({ ...currentRule, keywords: e.target.value.split(',').map(k => k.trim()) })} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Public Reply</label>
+                            <input type="text" value={currentRule.publicReply} onChange={e => setCurrentRule({ ...currentRule, publicReply: e.target.value })} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Bot Instructions (System Prompt)</label>
+                            <textarea rows={4} value={currentRule.systemPrompt} onChange={e => setCurrentRule({ ...currentRule, systemPrompt: e.target.value })} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md" />
+                        </div>
+                        <div className="flex justify-between mt-6">
+                            {currentRule.id && <button onClick={handleDeleteRule} className="px-4 py-2 font-semibold rounded-md text-red-400 hover:bg-red-500 hover:text-white transition">Delete</button>}
+                            <button onClick={handleSaveRule} className="px-4 py-2 font-semibold rounded-md bg-yellow-500 text-gray-900 hover:bg-yellow-600 transition ml-auto">Save Rule</button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+             {/* Service Editor Modal */}
+            <Modal isOpen={isServiceModalOpen} onClose={handleCloseModals} title={currentService?.id ? 'Edit Service' : 'Add New Service'}>
+                {currentService && (
+                    <div className="space-y-4 text-gray-300">
+                        <div>
+                            <label className="block text-sm font-medium">Service Name</label>
+                            <input type="text" value={currentService.name} onChange={e => setCurrentService({ ...currentService, name: e.target.value })} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md" />
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium">Price</label>
+                            <input type="text" value={currentService.price} onChange={e => setCurrentService({ ...currentService, price: e.target.value })} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Description</label>
+                            <textarea rows={3} value={currentService.description} onChange={e => setCurrentService({ ...currentService, description: e.target.value })} className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md" />
+                        </div>
+                        <div className="flex justify-between mt-6">
+                            {currentService.id && <button onClick={handleDeleteService} className="px-4 py-2 font-semibold rounded-md text-red-400 hover:bg-red-500 hover:text-white transition">Delete</button>}
+                            <button onClick={handleSaveService} className="px-4 py-2 font-semibold rounded-md bg-yellow-500 text-gray-900 hover:bg-yellow-600 transition ml-auto">Save Service</button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

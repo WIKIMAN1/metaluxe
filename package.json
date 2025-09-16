@@ -1,5 +1,5 @@
 {
-  "name": "metaluxe",
+  "name": "copy-of-copy-of-metaluxe",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,7 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.1.0",
     "@google/genai": "^0.14.0"
   },
   "devDependencies": {

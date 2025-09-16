@@ -1,8 +1,11 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Conversation, Message, MessageType, SocialPlatform, Service } from '../types';
 import { FacebookIcon, InstagramIcon, TikTokIcon, PaperAirplaneIcon, TagIcon, InboxIcon, MicrophoneIcon } from './Icons';
-import { format, parseISO } from 'date-fns';
+// FIX: 'parseISO' is not a direct export. Import it from its submodule.
+import { format } from 'date-fns';
+import parseISO from 'date-fns/parseISO';
 
 // Platform Icon Mapping
 const platformIcons: Record<SocialPlatform, React.ReactNode> = {
